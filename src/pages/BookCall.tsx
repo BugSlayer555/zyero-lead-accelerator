@@ -11,10 +11,17 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { CheckCircle, Clock, Users, Shield, Calendar, ArrowRight, Loader2, Mail, Calendar as CalendarIcon } from "lucide-react";
+import { CheckCircle, Clock, Users, Shield, ArrowRight, Loader2, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const timeSlots = [
   "10:00 AM",
@@ -23,6 +30,7 @@ const timeSlots = [
   "02:00 PM",
   "03:00 PM",
   "04:00 PM",
+  "05:00 PM",
 ];
 
 const benefits = [
@@ -44,6 +52,7 @@ export default function BookCall() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [step, setStep] = useState(1);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -51,6 +60,9 @@ export default function BookCall() {
     email: "",
     phone: "",
     company: "",
+    clientType: "",
+    marketingStatus: "",
+    budget: "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,39 +81,15 @@ export default function BookCall() {
     setIsDialogOpen(true);
   };
 
-  const generateGoogleCalendarLink = () => {
-    if (!date || !selectedTime) return "";
-
-    // Parse selectedTime to get hours and minutes
-    const [time, period] = selectedTime.split(" ");
-    let [hours, minutes] = time.split(":").map(Number);
-    if (period === "PM" && hours !== 12) hours += 12;
-    if (period === "AM" && hours === 12) hours = 0;
-
-    const startDate = new Date(date);
-    startDate.setHours(hours, minutes, 0);
-    const endDate = new Date(startDate.getTime() + 15 * 60000); // 15 mins later
-
-    const formatGCalDate = (d: Date) => d.toISOString().replace(/-|:|\.\d\d\d/g, "");
-
-    const params = new URLSearchParams({
-      action: "TEMPLATE",
-      text: `Strategy Call: ${formData.name} <> ZyeroLead`,
-      dates: `${formatGCalDate(startDate)}/${formatGCalDate(endDate)}`,
-      details: `Client Details:\nName: ${formData.name}\nPhone: ${formData.phone}\nEmail: ${formData.email}\nCompany: ${formData.company}\n\nMeeting to discuss lead acquisition.`,
-      location: "Phone/Online",
-      // IMPORTANT: This invites the owner. 
-      // The owner must be added as a guest for it to appear in their calendar.
-      add: "zyerolead@gmail.com",
-    });
-
-    return `https://calendar.google.com/calendar/render?${params.toString()}`;
-  };
-
-  const generateMailtoLink = () => {
-    const subject = `Booking Request: ${formData.name} for ${date ? format(date, "MMM do") : ""} at ${selectedTime}`;
-    const body = `Hi ZyeroLead Team,\n\nI would like to book a strategy call.\n\nDetails:\nName: ${formData.name}\nPhone: ${formData.phone}\nCompany: ${formData.company}\n\nRequested Time: ${date ? format(date, "MMM do, yyyy") : ""} at ${selectedTime}`;
-    return `mailto:zyerolead@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const handleNextStep = () => {
+    if (!formData.name || !formData.phone || !formData.email) {
+      toast({
+        title: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    setStep(2);
   };
 
   // REPLACE THIS WITH YOUR DEPLOYED GOOGLE APPS SCRIPT URL
@@ -113,15 +101,20 @@ export default function BookCall() {
 
     try {
       // 1. Format the data for the backend
+      // Pack extra details into company field (or description) to ensure it appears on calendar
+      const fullDetails = `Role: ${formData.clientType} | Ads: ${formData.marketingStatus} | Budget: ${formData.budget}`;
+      const enhancedCompany = formData.company ? `${formData.company} | ${fullDetails}` : fullDetails;
+
       const payload = {
         ...formData,
+        company: enhancedCompany,
+        description: fullDetails,
         date: date ? format(date, "yyyy-MM-dd") : "",
         time: selectedTime,
         created_at: new Date().toISOString()
       };
 
       // 2. Send to Google Apps Script
-      // mode: 'no-cors' is CRITICAL for sending data to Google Scripts from the client side
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
@@ -131,7 +124,7 @@ export default function BookCall() {
         body: JSON.stringify(payload),
       });
 
-      // 3. Handle Success (Since no-cors returns opaque response, we assume success if no error thrown)
+      // 3. Handle Success
       setIsSubmitting(false);
       setIsSuccess(true);
 
@@ -154,7 +147,16 @@ export default function BookCall() {
   const handleClose = () => {
     setIsDialogOpen(false);
     setIsSuccess(false);
-    setFormData({ name: "", email: "", phone: "", company: "" });
+    setStep(1);
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      company: "",
+      clientType: "",
+      marketingStatus: "",
+      budget: ""
+    });
     setSelectedTime(null);
   }
 
@@ -362,11 +364,17 @@ export default function BookCall() {
                 ? "You're all set. We have sent a calendar invitation to your email address."
                 : (
                   <>
-                    Please provide your details so we can confirm your slot for{" "}
-                    {date && selectedTime && (
-                      <span className="font-semibold text-primary">
-                        {format(date, "MMM do")} at {selectedTime}
-                      </span>
+                    {step === 1 ? (
+                      <>
+                        Please provide your details so we can confirm your slot for{" "}
+                        {date && selectedTime && (
+                          <span className="font-semibold text-primary">
+                            {format(date, "MMM do")} at {selectedTime}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      "Just a few more details to help us prepare for our call."
                     )}
                   </>
                 )
@@ -376,64 +384,151 @@ export default function BookCall() {
 
           {!isSuccess ? (
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name *</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  required
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="John Doe"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  required
-                  type="tel"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="+91 98765 43210"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  required
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="john@company.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="company">Company Name</Label>
-                <Input
-                  id="company"
-                  name="company"
-                  value={formData.company}
-                  onChange={handleInputChange}
-                  placeholder="Real Estate Corp"
-                />
-              </div>
+              {step === 1 && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      required
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      required
+                      type="tel"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="+91 98765 43210"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address *</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      required
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="john@company.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Company Name</Label>
+                    <Input
+                      id="company"
+                      name="company"
+                      value={formData.company}
+                      onChange={handleInputChange}
+                      placeholder="Real Estate Corp"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    className="w-full"
+                    onClick={handleNextStep}
+                  >
+                    Next <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              )}
 
-              <div className="pt-4">
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Confirming...
-                    </>
-                  ) : (
-                    "Confirm Booking"
-                  )}
-                </Button>
-              </div>
+              {step === 2 && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="space-y-2">
+                    <Label>You are a</Label>
+                    <Select
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, clientType: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Builder / Developer">
+                          Builder / Developer
+                        </SelectItem>
+                        <SelectItem value="Real Estate Agent / Channel Partner">
+                          Real Estate Agent / Channel Partner
+                        </SelectItem>
+                        <SelectItem value="Property Sales Team">
+                          Property Sales Team
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Are you currently running ads or marketing?</Label>
+                    <Select
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, marketingStatus: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Yes">Yes</SelectItem>
+                        <SelectItem value="No">No</SelectItem>
+                        <SelectItem value="Planning to start">
+                          Planning to start
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>What is your budget?</Label>
+                    <Select
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, budget: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select budget range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="< 50k">&lt; 50k</SelectItem>
+                        <SelectItem value="50k - 1L">50k - 1L</SelectItem>
+                        <SelectItem value="1L - 5L">1L - 5L</SelectItem>
+                        <SelectItem value="> 5L">5L &gt;</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={isSubmitting}
+                      onClick={() => setStep(1)}
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" /> Back
+                    </Button>
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Confirming...
+                        </>
+                      ) : (
+                        "Confirm Booking"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </form>
           ) : (
             <div className="text-center py-6 space-y-4">
