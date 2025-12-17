@@ -12,7 +12,7 @@ import Contact from "./pages/Contact";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import BookCall from "./pages/BookCall";
-import MinimalBookCall from "./pages/MinimalBookCall";
+import CalendarCall from "./pages/CalendarCall";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,7 +33,7 @@ const App = () => (
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/book-call" element={<BookCall />} />
-          <Route path="/minimal-book" element={<MinimalBookCall />} />
+          <Route path="/calendar-call" element={<CalendarCall />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

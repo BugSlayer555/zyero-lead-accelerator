@@ -93,10 +93,10 @@ export function Footer() {
               <li className="flex items-start gap-3">
                 <Mail className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <a
-                  href="mailto:support@zyerolead.com"
+                  href="mailto:zyerolead@gmail.com"
                   className="text-background/60 hover:text-primary transition-colors text-sm"
                 >
-                  support@zyerolead.com
+                  zyerolead@gmail.com
                 </a>
               </li>
               <li className="flex items-start gap-3">

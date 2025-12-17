@@ -33,7 +33,7 @@ const timeSlots = [
     "05:00 PM",
 ];
 
-export default function MinimalBookCall() {
+export default function CalendarCall() {
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -154,7 +154,7 @@ export default function MinimalBookCall() {
                 <div className="container mx-auto px-4">
                     <div className="max-w-4xl mx-auto">
                         <div className="text-center mb-8">
-                            <h1 className="text-3xl font-bold mb-4">Book a Strategy Call</h1>
+                            <h1 className="text-3xl font-bold mb-4">10 Verified Buyer Appointments in 3 Months</h1>
                             <p className="text-muted-foreground">Select a date and time that works for you.</p>
                         </div>
 

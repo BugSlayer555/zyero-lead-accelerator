@@ -39,38 +39,45 @@ export default function Contact() {
     window.open(`https://wa.me/919428623376?text=${encodedText}`, '_blank');
   };
 
+  // reusing the same script as BookCall for unified data entry
+  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzb9AGxRcdOg2DOIqUQOt2e4i46EcALFh7b4RBDeofgwuMYvQhN4Ce4YOCIHtzvAq6q/exec";
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("https://formspree.io/f/xblnvjyj", {
+      const payload = {
+        ...formData,
+        // Map fields to match what the script likely expects or can handle
+        description: `Message: ${formData.message} | City: ${formData.city}`,
+        date: new Date().toISOString().split('T')[0], // Current date
+        time: "Contact Request", // Tag it as a contact request
+        created_at: new Date().toISOString()
+      };
+
+      await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
+        mode: "no-cors",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json"
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
-      if (response.ok) {
-        toast({
-          title: "Message sent!",
-          description: "We've received your message and will get back to you shortly.",
-        });
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          company: "",
-          city: "",
-          message: ""
-        });
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Formspree error:", response.status, errorData);
-        throw new Error("Failed to send message");
-      }
+      // With no-cors, we can't check response.ok, so we assume success if it didn't throw
+      toast({
+        title: "Message sent!",
+        description: "We've received your message and will get back to you shortly.",
+      });
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        company: "",
+        city: "",
+        message: ""
+      });
     } catch (error) {
       console.error("Submission error:", error);
       toast({
@@ -98,7 +105,7 @@ export default function Contact() {
               <span className="text-gradient">Conversation</span>
             </h1>
             <p className="text-xl text-foreground/60 max-w-2xl mx-auto">
-              Have questions? Want to request free sample leads? We're here to
+              Have questions? Need a custom strategy? We're here to
               help you scale your real estate business.
             </p>
           </div>
