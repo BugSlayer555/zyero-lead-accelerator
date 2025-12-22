@@ -1,0 +1,101 @@
+// Google Apps Script Code
+// 1. Open your Google Sheet
+// 2. Extensions > Apps Script
+// 3. Paste this code, replacing everything else.
+// 4. Deploy > New Deployment > Web App > Access: Anyone > Deploy
+
+// Configuration: Matches your React app fields
+const SHEET_NAME = "Sheet1"; // Change if your sheet has a different name
+
+function doPost(e) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    if (!sheet) throw new Error("Sheet not found");
+
+    const data = JSON.parse(e.postData.contents);
+    
+    // Check for double booking
+    if (isSlotTaken(sheet, data.date, data.time)) {
+      return ContentService.createTextOutput(JSON.stringify({ 
+        status: "error", 
+        message: "Slot already taken" 
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Append new booking
+    sheet.appendRow([
+      data.created_at,
+      data.name, 
+      data.email, 
+      data.phone, 
+      data.company, 
+      data.description, // detailed info
+      data.date, 
+      data.time
+    ]);
+
+    return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    const requestedDate = e.parameter.date; // Expects "yyyy-MM-dd"
+    
+    // Get all data
+    const rows = sheet.getDataRange().getValues();
+    const bookedTimes = [];
+
+    // Skip header row (index 0)
+    for (let i = 1; i < rows.length; i++) {
+        // Column Index 6 is Date (G), Column Index 7 is Time (H) - assuming standard append order above
+        const rowDate = rows[i][6]; 
+        const rowTime = rows[i][7];
+
+        // Simple string comparison or date object comparison
+        // We formatted date as yyyy-MM-dd in frontend, so we expect string matches or Date matches.
+        // Google Sheets might convert to Date object.
+        
+        // Helper to format sheet date to string if needed
+        let sheetDateStr = rowDate;
+        if (rowDate instanceof Date) {
+            sheetDateStr = Utilities.formatDate(rowDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+        }
+
+        if (sheetDateStr === requestedDate) {
+            bookedTimes.push(rowTime);
+        }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ bookedTimes: bookedTimes }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ error: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function isSlotTaken(sheet, date, time) {
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const rowDate = rows[i][6];
+    const rowTime = rows[i][7];
+    
+    let sheetDateStr = rowDate;
+    if (rowDate instanceof Date) {
+         sheetDateStr = Utilities.formatDate(rowDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+    }
+    
+    if (sheetDateStr === date && rowTime === time) {
+      return true;
+    }
+  }
+  return false;
+}
